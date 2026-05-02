@@ -1,0 +1,16 @@
+package com.gymlog.domain.repository
+
+import com.gymlog.domain.model.Exercise
+import kotlinx.coroutines.flow.Flow
+
+/** Contract for searching and creating exercises. */
+interface ExerciseRepository {
+    /** Returns all exercises sorted by name. */
+    fun getAllExercises(): Flow<List<Exercise>>
+
+    /** Returns filtered exercises sorted by name. */
+    fun searchExercises(query: String): Flow<List<Exercise>>
+
+    /** Looks up or creates an exercise by name. */
+    suspend fun getOrCreateExercise(name: String): Result<Exercise>
+}
