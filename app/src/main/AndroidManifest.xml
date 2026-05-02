@@ -9,11 +9,11 @@
         android:maxSdkVersion="32" />
 
     <application
-        android:name=".GymLogApp"
+        android:name=".NoFrillsWorkoutTrackerApp"
         android:allowBackup="true"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.GymLog">
+        android:theme="@style/Theme.NoFrillsWorkoutTracker">
         <activity
             android:name=".MainActivity"
             android:exported="true">

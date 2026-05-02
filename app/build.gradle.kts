@@ -15,11 +15,11 @@ ksp {
 }
 
 android {
-    namespace = "com.gymlog"
+    namespace = "com.nofrills.workouttracker"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.gymlog"
+        applicationId = "com.nofrills.workouttracker"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
