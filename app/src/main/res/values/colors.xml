@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Solid backdrop behind the barbell artwork for adaptive launcher icons. -->
+    <color name="ic_launcher_background">#0F0F0F</color>
+</resources>
