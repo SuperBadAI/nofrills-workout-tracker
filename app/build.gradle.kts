@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.hilt.android)
 }
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.incremental", "true")
@@ -39,16 +41,20 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
     implementation(libs.core.ktx)
+    implementation(libs.appcompat)
     implementation(libs.activity.compose)
 
     implementation(platform(libs.compose.bom))
