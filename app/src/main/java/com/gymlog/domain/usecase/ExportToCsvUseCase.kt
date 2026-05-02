@@ -8,5 +8,6 @@ class ExportToCsvUseCase(
     private val repository: WorkoutRepository
 ) {
     /** Writes historical sessions to CSV and returns the target Uri when successful. */
-    suspend operator fun invoke(): Result<Uri?> = repository.exportAllSessionsToCsv()
+    suspend operator fun invoke(userName: String): Result<Uri?> =
+        repository.exportAllSessionsToCsv(userName)
 }

@@ -14,11 +14,17 @@ data class MutableSetInput(
 )
 
 /** Top-level screen states for one-screen app flow. */
-enum class ScreenState { IDLE, EXERCISE_SELECTED }
+enum class ScreenState { LOGIN, IDLE, EXERCISE_SELECTED }
+
+/** Available weight units for input/display. */
+enum class WeightUnit { KG, LBS }
 
 /** Immutable state holder for workout screen render logic. */
 data class WorkoutUiState(
-    val screenState: ScreenState = ScreenState.IDLE,
+    val screenState: ScreenState = ScreenState.LOGIN,
+    val userName: String = "",
+    val loginInput: String = "",
+    val weightUnit: WeightUnit = WeightUnit.KG,
     val searchQuery: String = "",
     val searchResults: List<Exercise> = emptyList(),
     val selectedExercise: Exercise? = null,

@@ -8,3 +8,7 @@ local.properties
 .externalNativeBuild/
 .cxx/
 app/build/
+
+# Kotlin / Gradle local caches (not part of the app source)
+.kotlin/
+gradle/gradle-daemon-jvm.properties

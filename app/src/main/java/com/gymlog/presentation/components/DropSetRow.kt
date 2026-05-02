@@ -5,11 +5,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
@@ -19,6 +22,7 @@ fun DropSetRow(
     parentSetNumber: Int,
     previousReps: Int?,
     previousWeight: Float?,
+    weightSuffix: String,
     currentReps: String,
     currentWeight: String,
     onRepsChange: (String) -> Unit,
@@ -36,15 +40,27 @@ fun DropSetRow(
         OutlinedTextField(
             value = currentWeight,
             onValueChange = onWeightChange,
+            label = { Text("Weight") },
             placeholder = { Text(previousWeight?.toString() ?: "0") },
             modifier = Modifier.weight(1f),
-            suffix = { Text("kg") }
+            suffix = { Text(weightSuffix) },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Next
+            ),
+            singleLine = true
         )
         OutlinedTextField(
             value = currentReps,
             onValueChange = onRepsChange,
+            label = { Text("Reps") },
             placeholder = { Text(previousReps?.toString() ?: "0") },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            singleLine = true
         )
     }
 }
@@ -56,6 +72,7 @@ private fun DropSetRowPreview() {
         parentSetNumber = 2,
         previousReps = 6,
         previousWeight = 75f,
+        weightSuffix = "kg",
         currentReps = "",
         currentWeight = "",
         onRepsChange = {},

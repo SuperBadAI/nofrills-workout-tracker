@@ -8,6 +8,6 @@ class GetLastSessionForExerciseUseCase(
     private val repository: WorkoutRepository
 ) {
     /** Returns latest session for an exercise, or null when none exists. */
-    suspend operator fun invoke(exerciseId: Long): Result<WorkoutSession?> =
-        repository.getLastSessionForExercise(exerciseId)
+    suspend operator fun invoke(exerciseId: Long, userName: String): Result<WorkoutSession?> =
+        repository.getLastSessionForExercise(exerciseId, userName)
 }

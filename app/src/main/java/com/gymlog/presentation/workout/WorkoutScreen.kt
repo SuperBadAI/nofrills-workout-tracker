@@ -3,6 +3,7 @@ package com.gymlog.presentation.workout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -34,6 +37,9 @@ fun WorkoutScreen(viewModel: WorkoutViewModel = hiltViewModel()) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     WorkoutScreenContent(
         state = state,
+        onLoginInputChanged = viewModel::onLoginInputChanged,
+        onLoginConfirmed = viewModel::onLoginConfirmed,
+        onWeightUnitChanged = viewModel::onWeightUnitChanged,
         onQueryChange = viewModel::onSearchQueryChanged,
         onExerciseSelected = viewModel::onExerciseSelected,
         onCreateExercise = viewModel::onExerciseCreated,
@@ -53,6 +59,9 @@ fun WorkoutScreen(viewModel: WorkoutViewModel = hiltViewModel()) {
 @Composable
 fun WorkoutScreenContent(
     state: WorkoutUiState,
+    onLoginInputChanged: (String) -> Unit,
+    onLoginConfirmed: () -> Unit,
+    onWeightUnitChanged: (WeightUnit) -> Unit,
     onQueryChange: (String) -> Unit,
     onExerciseSelected: (Exercise) -> Unit,
     onCreateExercise: (String) -> Unit,
@@ -87,58 +96,95 @@ fun WorkoutScreenContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (state.screenState == ScreenState.IDLE) {
-                ExerciseSearchBar(
-                    query = state.searchQuery,
-                    results = state.searchResults,
-                    onQueryChange = onQueryChange,
-                    onExerciseSelected = onExerciseSelected,
-                    onCreateExercise = onCreateExercise,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                Text(
-                    text = state.selectedExercise?.name.orEmpty(),
-                    modifier = Modifier.clickable { onRequestAbandon() }
-                )
-
-                state.currentSets.forEachIndexed { index, set ->
-                    val previous = state.previousSession?.sets?.firstOrNull {
-                        it.setNumber == set.setNumber && it.isDropSet == set.isDropSet
-                    }
-                    if (set.isDropSet) {
-                        DropSetRow(
-                            parentSetNumber = set.setNumber,
-                            previousReps = previous?.reps,
-                            previousWeight = previous?.weightKg,
-                            currentReps = set.reps,
-                            currentWeight = set.weightKg,
-                            onRepsChange = { onSetUpdated(index, it, set.weightKg) },
-                            onWeightChange = { onSetUpdated(index, set.reps, it) }
-                        )
-                    } else {
-                        SetRow(
-                            setNumber = set.setNumber,
-                            previousReps = previous?.reps,
-                            previousWeight = previous?.weightKg,
-                            currentReps = set.reps,
-                            currentWeight = set.weightKg,
-                            onRepsChange = { onSetUpdated(index, it, set.weightKg) },
-                            onWeightChange = { onSetUpdated(index, set.reps, it) },
-                            onAddDropSet = { onAddDropSet(index) }
-                        )
+            when (state.screenState) {
+                ScreenState.LOGIN -> {
+                    Text("Welcome to GymLog")
+                    OutlinedTextField(
+                        value = state.loginInput,
+                        onValueChange = onLoginInputChanged,
+                        label = { Text("Username") },
+                        placeholder = { Text("Enter your name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Button(onClick = onLoginConfirmed, modifier = Modifier.fillMaxWidth()) {
+                        Text("Continue")
                     }
                 }
 
-                AddSetButton(onClick = onAddSet)
-                Spacer(modifier = Modifier.height(8.dp))
-                val canComplete = state.currentSets.any { (it.reps.toIntOrNull() ?: 0) > 0 }
-                Button(
-                    onClick = onCompleteWorkout,
-                    enabled = canComplete && !state.isSaving,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (state.isSaving) "Saving..." else "Complete")
+                ScreenState.IDLE -> {
+                    Text("Logged in as ${state.userName}")
+                    ExerciseSearchBar(
+                        query = state.searchQuery,
+                        results = state.searchResults,
+                        onQueryChange = onQueryChange,
+                        onExerciseSelected = onExerciseSelected,
+                        onCreateExercise = onCreateExercise,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                ScreenState.EXERCISE_SELECTED -> {
+                    Text(
+                        text = state.selectedExercise?.name.orEmpty(),
+                        modifier = Modifier.clickable { onRequestAbandon() }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = state.weightUnit == WeightUnit.KG,
+                            onClick = { onWeightUnitChanged(WeightUnit.KG) },
+                            label = { Text("KG") }
+                        )
+                        FilterChip(
+                            selected = state.weightUnit == WeightUnit.LBS,
+                            onClick = { onWeightUnitChanged(WeightUnit.LBS) },
+                            label = { Text("LBS") }
+                        )
+                    }
+
+                    state.currentSets.forEachIndexed { index, set ->
+                        val previous = state.previousSession?.sets?.firstOrNull {
+                            it.setNumber == set.setNumber && it.isDropSet == set.isDropSet
+                        }
+                        val previousWeightInUnit = previous?.weightKg?.let { kg ->
+                            if (state.weightUnit == WeightUnit.KG) kg else kg * 2.2046226f
+                        }
+                        if (set.isDropSet) {
+                            DropSetRow(
+                                parentSetNumber = set.setNumber,
+                                previousReps = previous?.reps,
+                                previousWeight = previousWeightInUnit,
+                                weightSuffix = state.weightUnit.name.lowercase(),
+                                currentReps = set.reps,
+                                currentWeight = set.weightKg,
+                                onRepsChange = { onSetUpdated(index, it, set.weightKg) },
+                                onWeightChange = { onSetUpdated(index, set.reps, it) }
+                            )
+                        } else {
+                            SetRow(
+                                setNumber = set.setNumber,
+                                previousReps = previous?.reps,
+                                previousWeight = previousWeightInUnit,
+                                weightSuffix = state.weightUnit.name.lowercase(),
+                                currentReps = set.reps,
+                                currentWeight = set.weightKg,
+                                onRepsChange = { onSetUpdated(index, it, set.weightKg) },
+                                onWeightChange = { onSetUpdated(index, set.reps, it) },
+                                onAddDropSet = { onAddDropSet(index) }
+                            )
+                        }
+                    }
+
+                    AddSetButton(onClick = onAddSet)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val canComplete = state.currentSets.any { (it.reps.toIntOrNull() ?: 0) > 0 }
+                    Button(
+                        onClick = onCompleteWorkout,
+                        enabled = canComplete && !state.isSaving,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (state.isSaving) "Saving..." else "Complete")
+                    }
                 }
             }
         }
@@ -161,12 +207,16 @@ private fun WorkoutScreenContentPreview() {
     WorkoutScreenContent(
         state = WorkoutUiState(
             screenState = ScreenState.EXERCISE_SELECTED,
+            userName = "Adam",
             selectedExercise = Exercise(id = 1, name = "Bench Press"),
             currentSets = listOf(
                 MutableSetInput(setNumber = 1),
                 MutableSetInput(setNumber = 1, isDropSet = true)
             )
         ),
+        onLoginInputChanged = {},
+        onLoginConfirmed = {},
+        onWeightUnitChanged = {},
         onQueryChange = {},
         onExerciseSelected = {},
         onCreateExercise = {},

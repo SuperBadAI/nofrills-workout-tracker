@@ -30,7 +30,7 @@ class CsvManager @Inject constructor(
     private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
     private val fileName = "gymlog_log.csv"
     private val folderName = "Download/GymLog"
-    private val header = "date,time,exercise,set_number,is_drop_set,parent_set,reps,weight_kg\n"
+    private val header = "date,time,user,exercise,set_number,is_drop_set,parent_set,reps,weight_kg\n"
 
     /** Appends one completed session to running CSV log file. */
     suspend fun appendSession(session: WorkoutSession) = withContext(ioDispatcher) {
@@ -41,7 +41,7 @@ class CsvManager @Inject constructor(
                 val date = Date(session.completedAt)
                 val label = if (set.isDropSet) "${set.setNumber}A" else set.setNumber.toString()
                 writer.append(
-                    "${dateFormat.format(date)},${timeFormat.format(date)},${session.exercise.name}," +
+                    "${dateFormat.format(date)},${timeFormat.format(date)},${session.userName},${session.exercise.name}," +
                         "$label,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},${set.weightKg}\n"
                 )
             }
@@ -100,7 +100,7 @@ class CsvManager @Inject constructor(
         session.sets.forEach { set ->
             val label = if (set.isDropSet) "${set.setNumber}A" else set.setNumber.toString()
             writer.append(
-                "${dateFormat.format(date)},${timeFormat.format(date)},${session.exercise.name}," +
+                "${dateFormat.format(date)},${timeFormat.format(date)},${session.userName},${session.exercise.name}," +
                     "$label,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},${set.weightKg}\n"
             )
         }

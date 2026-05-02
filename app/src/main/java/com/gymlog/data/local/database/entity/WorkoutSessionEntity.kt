@@ -19,10 +19,11 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("exercise_id")]
+    indices = [Index("exercise_id"), Index("user_name"), Index(value = ["exercise_id", "user_name"])]
 )
 data class WorkoutSessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "user_name") val userName: String,
     @ColumnInfo(name = "exercise_id") val exerciseId: Long,
     @ColumnInfo(name = "completed_at_millis") val completedAtMillis: Long
 )

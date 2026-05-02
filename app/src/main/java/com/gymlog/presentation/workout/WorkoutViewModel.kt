@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** ViewModel that coordinates search, set edits, and save flow for GymLog. */
+/** ViewModel that coordinates login, search, set edits, and save flow for GymLog. */
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
     private val searchExercisesUseCase: SearchExercisesUseCase,
@@ -31,8 +31,32 @@ class WorkoutViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    init {
+    /** Updates the login text field value. */
+    fun onLoginInputChanged(value: String) {
+        mutableState.update { it.copy(loginInput = value) }
+    }
+
+    /** Starts a user session for the provided username. */
+    fun onLoginConfirmed() {
+        val user = mutableState.value.loginInput.trim()
+        if (user.isBlank()) {
+            mutableState.update { it.copy(errorMessage = "Enter a username to continue") }
+            return
+        }
+        mutableState.update {
+            it.copy(
+                userName = user,
+                loginInput = user,
+                screenState = ScreenState.IDLE,
+                errorMessage = null
+            )
+        }
         observeSearch("")
+    }
+
+    /** Switches the weight unit used in set inputs. */
+    fun onWeightUnitChanged(unit: WeightUnit) {
+        mutableState.update { it.copy(weightUnit = unit) }
     }
 
     /** Updates query text and triggers reactive search. */
@@ -42,6 +66,7 @@ class WorkoutViewModel @Inject constructor(
     }
 
     private fun observeSearch(query: String) {
+        if (mutableState.value.screenState == ScreenState.LOGIN) return
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             searchExercisesUseCase(query).collect { results ->
@@ -50,8 +75,9 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    /** Selects an exercise and loads previous session hints. */
+    /** Selects an exercise and loads previous session hints for current user. */
     fun onExerciseSelected(exercise: Exercise) {
+        val currentUser = mutableState.value.userName
         mutableState.update {
             it.copy(
                 screenState = ScreenState.EXERCISE_SELECTED,
@@ -62,7 +88,7 @@ class WorkoutViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            getLastSessionForExerciseUseCase(exercise.id)
+            getLastSessionForExerciseUseCase(exercise.id, currentUser)
                 .onSuccess { session ->
                     mutableState.update { state -> state.copy(previousSession = session?.copy(exercise = exercise)) }
                 }
@@ -108,7 +134,7 @@ class WorkoutViewModel @Inject constructor(
             val row = MutableSetInput(
                 setNumber = parent.setNumber,
                 isDropSet = true,
-                parentSetId = parent.setId
+                parentSetId = parent.setId.takeIf { it > 0 }
             )
             state.copy(currentSets = state.currentSets + row)
         }
@@ -125,15 +151,17 @@ class WorkoutViewModel @Inject constructor(
     fun onCompleteWorkout() {
         val current = mutableState.value
         val exercise = current.selectedExercise ?: return
+        val currentUser = current.userName
         val validSets = current.currentSets.mapNotNull { input ->
             val reps = input.reps.toIntOrNull() ?: 0
             if (reps <= 0) return@mapNotNull null
+            val enteredWeight = input.weightKg.toFloatOrNull() ?: 0f
             WorkoutSet(
                 setNumber = input.setNumber,
                 reps = reps,
-                weightKg = input.weightKg.toFloatOrNull() ?: 0f,
+                weightKg = enteredWeight.toKg(current.weightUnit),
                 isDropSet = input.isDropSet,
-                parentSetId = input.parentSetId
+                parentSetId = input.parentSetId.takeIf { it != null && it > 0 }
             )
         }
         if (validSets.isEmpty()) {
@@ -143,9 +171,15 @@ class WorkoutViewModel @Inject constructor(
 
         viewModelScope.launch {
             mutableState.update { it.copy(isSaving = true) }
-            saveWorkoutSessionUseCase(exercise, validSets)
+            saveWorkoutSessionUseCase(currentUser, exercise, validSets)
                 .onSuccess {
-                    mutableState.value = WorkoutUiState(successMessage = "Workout saved")
+                    mutableState.value = WorkoutUiState(
+                        userName = currentUser,
+                        loginInput = currentUser,
+                        screenState = ScreenState.IDLE,
+                        weightUnit = current.weightUnit,
+                        successMessage = "Workout saved"
+                    )
                     observeSearch("")
                 }
                 .onFailure { throwable ->
@@ -168,7 +202,13 @@ class WorkoutViewModel @Inject constructor(
 
     /** Drops current workout context and returns to search. */
     fun onAbandonWorkout() {
-        mutableState.value = WorkoutUiState()
+        val state = mutableState.value
+        mutableState.value = WorkoutUiState(
+            userName = state.userName,
+            loginInput = state.userName,
+            screenState = ScreenState.IDLE,
+            weightUnit = state.weightUnit
+        )
         observeSearch("")
     }
 
@@ -181,4 +221,7 @@ class WorkoutViewModel @Inject constructor(
     fun clearErrorMessage() {
         mutableState.update { it.copy(errorMessage = null) }
     }
+
+    private fun Float.toKg(unit: WeightUnit): Float =
+        if (unit == WeightUnit.KG) this else this * 0.45359237f
 }

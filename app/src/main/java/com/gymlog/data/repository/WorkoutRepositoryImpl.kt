@@ -23,9 +23,9 @@ class WorkoutRepositoryImpl @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : WorkoutRepository {
     /** Returns latest session for one exercise including all sets. */
-    override suspend fun getLastSessionForExercise(exerciseId: Long): Result<WorkoutSession?> = withContext(ioDispatcher) {
+    override suspend fun getLastSessionForExercise(exerciseId: Long, userName: String): Result<WorkoutSession?> = withContext(ioDispatcher) {
         runCatching {
-            workoutSessionDao.getLastSessionWithExerciseAndSets(exerciseId)?.toDomain()
+            workoutSessionDao.getLastSessionWithExerciseAndSets(exerciseId, userName)?.toDomain()
         }
     }
 
@@ -47,9 +47,9 @@ class WorkoutRepositoryImpl @Inject constructor(
     }
 
     /** Exports all sessions to timestamped CSV and returns output Uri. */
-    override suspend fun exportAllSessionsToCsv(): Result<Uri?> = withContext(ioDispatcher) {
+    override suspend fun exportAllSessionsToCsv(userName: String): Result<Uri?> = withContext(ioDispatcher) {
         runCatching {
-            val sessions = workoutSessionDao.getAllSessionsWithExerciseAndSetsOnce().map { it.toDomain() }
+            val sessions = workoutSessionDao.getAllSessionsWithExerciseAndSetsOnce(userName).map { it.toDomain() }
             csvManager.exportAllData(sessions)
         }
     }

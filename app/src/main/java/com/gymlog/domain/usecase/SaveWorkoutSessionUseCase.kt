@@ -10,9 +10,13 @@ class SaveWorkoutSessionUseCase(
     private val repository: WorkoutRepository
 ) {
     /** Saves one session for the provided exercise and list of sets. */
-    suspend operator fun invoke(exercise: Exercise, sets: List<WorkoutSet>): Result<Long> {
+    suspend operator fun invoke(
+        userName: String,
+        exercise: Exercise,
+        sets: List<WorkoutSet>
+    ): Result<Long> {
         return repository.saveWorkoutSession(
-            WorkoutSession(exercise = exercise, sets = sets)
+            WorkoutSession(userName = userName, exercise = exercise, sets = sets)
         )
     }
 }

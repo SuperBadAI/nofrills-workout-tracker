@@ -3,7 +3,6 @@ package com.gymlog.data.mapper
 import com.gymlog.data.local.database.entity.WorkoutSessionEntity
 import com.gymlog.data.local.database.entity.WorkoutSetEntity
 import com.gymlog.data.local.database.model.SessionWithExerciseAndSets
-import com.gymlog.data.local.database.model.SessionWithSets
 import com.gymlog.domain.model.Exercise
 import com.gymlog.domain.model.WorkoutSession
 import com.gymlog.domain.model.WorkoutSet
@@ -29,17 +28,10 @@ fun WorkoutSetEntity.toDomain(): WorkoutSet = WorkoutSet(
     parentSetId = parentSetId
 )
 
-/** Converts session aggregate with sets to domain session. */
-fun SessionWithSets.toDomain(exercise: Exercise): WorkoutSession = WorkoutSession(
-    id = session.id,
-    exercise = exercise,
-    sets = sets.sortedBy { it.setNumber }.map { it.toDomain() },
-    completedAt = session.completedAtMillis
-)
-
 /** Converts full export aggregate to domain session. */
 fun SessionWithExerciseAndSets.toDomain(): WorkoutSession = WorkoutSession(
     id = session.id,
+    userName = session.userName,
     exercise = Exercise(
         id = exercise.id,
         name = exercise.name,
@@ -52,6 +44,7 @@ fun SessionWithExerciseAndSets.toDomain(): WorkoutSession = WorkoutSession(
 /** Builds a session entity from exercise and timestamp. */
 fun WorkoutSession.toSessionEntity(): WorkoutSessionEntity = WorkoutSessionEntity(
     id = id,
+    userName = userName,
     exerciseId = exercise.id,
     completedAtMillis = completedAt
 )

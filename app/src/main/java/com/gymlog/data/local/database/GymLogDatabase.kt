@@ -12,7 +12,7 @@ import com.gymlog.data.local.database.entity.WorkoutSetEntity
 /** Primary Room database for GymLog entities. */
 @Database(
     entities = [ExerciseEntity::class, WorkoutSessionEntity::class, WorkoutSetEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class GymLogDatabase : RoomDatabase() {
