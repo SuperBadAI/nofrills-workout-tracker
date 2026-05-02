@@ -31,7 +31,7 @@ import com.nofrills.workouttracker.presentation.components.DropSetRow
 import com.nofrills.workouttracker.presentation.components.ExerciseSearchBar
 import com.nofrills.workouttracker.presentation.components.SetRow
 
-/** Single-screen gym logging UI. */
+/** Single-screen workout logging UI for **No Frills Workout Tracker**. */
 @Composable
 fun WorkoutScreen(viewModel: WorkoutViewModel = hiltViewModel()) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
