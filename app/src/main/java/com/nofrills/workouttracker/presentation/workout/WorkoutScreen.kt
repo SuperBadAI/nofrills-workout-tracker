@@ -1,6 +1,5 @@
 package com.nofrills.workouttracker.presentation.workout
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -29,6 +29,7 @@ import com.nofrills.workouttracker.domain.model.Exercise
 import com.nofrills.workouttracker.presentation.components.AddSetButton
 import com.nofrills.workouttracker.presentation.components.DropSetRow
 import com.nofrills.workouttracker.presentation.components.ExerciseSearchBar
+import com.nofrills.workouttracker.presentation.components.LastSessionSummary
 import com.nofrills.workouttracker.presentation.components.SetRow
 
 /** Single-screen workout logging UI for **No Frills Workout Tracker**. */
@@ -47,7 +48,7 @@ fun WorkoutScreen(viewModel: WorkoutViewModel = hiltViewModel()) {
         onAddDropSet = viewModel::onAddDropSet,
         onAddSet = viewModel::onAddSet,
         onCompleteWorkout = viewModel::onCompleteWorkout,
-        onRequestAbandon = viewModel::requestAbandonWorkout,
+        onBackFromExercise = viewModel::onBackFromExercise,
         onDismissAbandon = viewModel::dismissAbandonDialog,
         onConfirmAbandon = viewModel::onAbandonWorkout,
         onSuccessShown = viewModel::clearSuccessMessage,
@@ -69,7 +70,7 @@ fun WorkoutScreenContent(
     onAddDropSet: (Int) -> Unit,
     onAddSet: () -> Unit,
     onCompleteWorkout: () -> Unit,
-    onRequestAbandon: () -> Unit,
+    onBackFromExercise: () -> Unit,
     onDismissAbandon: () -> Unit,
     onConfirmAbandon: () -> Unit,
     onSuccessShown: () -> Unit,
@@ -125,9 +126,14 @@ fun WorkoutScreenContent(
                 }
 
                 ScreenState.EXERCISE_SELECTED -> {
-                    Text(
-                        text = state.selectedExercise?.name.orEmpty(),
-                        modifier = Modifier.clickable { onRequestAbandon() }
+                    TextButton(onClick = onBackFromExercise, modifier = Modifier.fillMaxWidth()) {
+                        Text("← Change exercise")
+                    }
+                    Text(text = state.selectedExercise?.name.orEmpty())
+                    LastSessionSummary(
+                        session = state.previousSession,
+                        weightUnit = state.weightUnit,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
@@ -193,9 +199,9 @@ fun WorkoutScreenContent(
     if (state.showAbandonDialog) {
         AlertDialog(
             onDismissRequest = onDismissAbandon,
-            title = { Text("Abandon workout?") },
-            text = { Text("Your current set inputs will be lost.") },
-            confirmButton = { Button(onClick = onConfirmAbandon) { Text("Abandon") } },
+            title = { Text("Leave this exercise?") },
+            text = { Text("You have entered weight or reps. Going back will discard those values.") },
+            confirmButton = { Button(onClick = onConfirmAbandon) { Text("Discard and go back") } },
             dismissButton = { Button(onClick = onDismissAbandon) { Text("Cancel") } }
         )
     }
@@ -224,7 +230,7 @@ private fun WorkoutScreenContentPreview() {
         onAddDropSet = {},
         onAddSet = {},
         onCompleteWorkout = {},
-        onRequestAbandon = {},
+        onBackFromExercise = {},
         onDismissAbandon = {},
         onConfirmAbandon = {},
         onSuccessShown = {},

@@ -190,6 +190,19 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Returns to exercise search when the user wants a different lift. If they already typed weight or reps, we ask
+     * for confirmation so accidental taps do not discard in-progress input.
+     */
+    fun onBackFromExercise() {
+        val state = mutableState.value
+        if (state.currentSets.any { it.reps.isNotBlank() || it.weightKg.isNotBlank() }) {
+            requestAbandonWorkout()
+        } else {
+            onAbandonWorkout()
+        }
+    }
+
     /** Opens confirm dialog before abandoning active workout. */
     fun requestAbandonWorkout() {
         mutableState.update { it.copy(showAbandonDialog = true) }
@@ -207,7 +220,8 @@ class WorkoutViewModel @Inject constructor(
             userName = state.userName,
             loginInput = state.userName,
             screenState = ScreenState.IDLE,
-            weightUnit = state.weightUnit
+            weightUnit = state.weightUnit,
+            showAbandonDialog = false
         )
         observeSearch("")
     }
