@@ -1,5 +1,6 @@
 package com.nofrills.workouttracker.presentation.workout
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,10 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -20,6 +24,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,7 +39,13 @@ import com.nofrills.workouttracker.presentation.components.SetRow
 
 /** Single-screen workout logging UI for **No Frills Workout Tracker**. */
 @Composable
-fun WorkoutScreen(viewModel: WorkoutViewModel = hiltViewModel()) {
+fun WorkoutScreen(
+    viewModel: WorkoutViewModel = hiltViewModel(),
+    onShareCsvUri: (Uri) -> Unit = { _ -> }
+) {
+    LaunchedEffect(viewModel) {
+        viewModel.shareCsvUriEvents.collect { uri -> onShareCsvUri(uri) }
+    }
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     WorkoutScreenContent(
         state = state,
@@ -52,7 +63,11 @@ fun WorkoutScreen(viewModel: WorkoutViewModel = hiltViewModel()) {
         onDismissAbandon = viewModel::dismissAbandonDialog,
         onConfirmAbandon = viewModel::onAbandonWorkout,
         onSuccessShown = viewModel::clearSuccessMessage,
-        onErrorShown = viewModel::clearErrorMessage
+        onErrorShown = viewModel::clearErrorMessage,
+        onShareCsvClicked = viewModel::onShareCsvClicked,
+        onShareCsvDialogDismiss = viewModel::onShareCsvDialogDismiss,
+        onShareCsvUserSelected = viewModel::onShareCsvUserSelected,
+        onShareCsvConfirmed = viewModel::onShareCsvConfirmed
     )
 }
 
@@ -74,7 +89,11 @@ fun WorkoutScreenContent(
     onDismissAbandon: () -> Unit,
     onConfirmAbandon: () -> Unit,
     onSuccessShown: () -> Unit,
-    onErrorShown: () -> Unit
+    onErrorShown: () -> Unit,
+    onShareCsvClicked: () -> Unit,
+    onShareCsvDialogDismiss: () -> Unit,
+    onShareCsvUserSelected: (String) -> Unit,
+    onShareCsvConfirmed: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -115,6 +134,13 @@ fun WorkoutScreenContent(
 
                 ScreenState.IDLE -> {
                     Text("Logged in as ${state.userName}")
+                    OutlinedButton(
+                        onClick = onShareCsvClicked,
+                        enabled = !state.isExportingCsv,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (state.isExportingCsv) "Preparing CSV…" else "Share workout CSV…")
+                    }
                     ExerciseSearchBar(
                         query = state.searchQuery,
                         results = state.searchResults,
@@ -128,6 +154,13 @@ fun WorkoutScreenContent(
                 ScreenState.EXERCISE_SELECTED -> {
                     TextButton(onClick = onBackFromExercise, modifier = Modifier.fillMaxWidth()) {
                         Text("← Change exercise")
+                    }
+                    OutlinedButton(
+                        onClick = onShareCsvClicked,
+                        enabled = !state.isExportingCsv,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (state.isExportingCsv) "Preparing CSV…" else "Share workout CSV…")
                     }
                     Text(text = state.selectedExercise?.name.orEmpty())
                     LastSessionSummary(
@@ -205,6 +238,49 @@ fun WorkoutScreenContent(
             dismissButton = { Button(onClick = onDismissAbandon) { Text("Cancel") } }
         )
     }
+
+    if (state.showShareCsvDialog) {
+        AlertDialog(
+            onDismissRequest = onShareCsvDialogDismiss,
+            title = { Text("Share workout CSV") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Choose a user. The file includes only that person’s saved workouts.")
+                    if (state.userNamesWithData.isEmpty()) {
+                        Text("No saved workouts yet.")
+                    } else {
+                        state.userNamesWithData.forEach { name ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = name == state.shareCsvSelectedUser,
+                                        onClick = { onShareCsvUserSelected(name) }
+                                    )
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = name == state.shareCsvSelectedUser,
+                                    onClick = null
+                                )
+                                Text(name, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onShareCsvConfirmed,
+                    enabled = state.userNamesWithData.isNotEmpty() && state.shareCsvSelectedUser.isNotBlank()
+                ) {
+                    Text("Share")
+                }
+            },
+            dismissButton = { TextButton(onClick = onShareCsvDialogDismiss) { Text("Cancel") } }
+        )
+    }
 }
 
 @Preview(showBackground = true)
@@ -234,6 +310,10 @@ private fun WorkoutScreenContentPreview() {
         onDismissAbandon = {},
         onConfirmAbandon = {},
         onSuccessShown = {},
-        onErrorShown = {}
+        onErrorShown = {},
+        onShareCsvClicked = {},
+        onShareCsvDialogDismiss = {},
+        onShareCsvUserSelected = {},
+        onShareCsvConfirmed = {}
     )
 }

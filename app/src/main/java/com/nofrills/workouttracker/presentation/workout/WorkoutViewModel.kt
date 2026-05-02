@@ -1,19 +1,27 @@
 package com.nofrills.workouttracker.presentation.workout
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nofrills.workouttracker.domain.model.Exercise
 import com.nofrills.workouttracker.domain.model.WorkoutSet
+import com.nofrills.workouttracker.domain.usecase.ExportToCsvUseCase
 import com.nofrills.workouttracker.domain.usecase.GetLastSessionForExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.GetOrCreateExerciseUseCase
+import com.nofrills.workouttracker.domain.usecase.ObserveUserNamesWithDataUseCase
 import com.nofrills.workouttracker.domain.usecase.SaveWorkoutSessionUseCase
 import com.nofrills.workouttracker.domain.usecase.SearchExercisesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,13 +31,24 @@ class WorkoutViewModel @Inject constructor(
     private val searchExercisesUseCase: SearchExercisesUseCase,
     private val getOrCreateExerciseUseCase: GetOrCreateExerciseUseCase,
     private val getLastSessionForExerciseUseCase: GetLastSessionForExerciseUseCase,
-    private val saveWorkoutSessionUseCase: SaveWorkoutSessionUseCase
+    private val saveWorkoutSessionUseCase: SaveWorkoutSessionUseCase,
+    private val exportToCsvUseCase: ExportToCsvUseCase,
+    observeUserNamesWithDataUseCase: ObserveUserNamesWithDataUseCase
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(WorkoutUiState())
     val uiState: StateFlow<WorkoutUiState> = mutableState.asStateFlow()
 
+    private val shareCsvUriEventsMutable = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
+    val shareCsvUriEvents: SharedFlow<Uri> = shareCsvUriEventsMutable.asSharedFlow()
+
     private var searchJob: Job? = null
+
+    init {
+        observeUserNamesWithDataUseCase()
+            .onEach { names -> mutableState.update { it.copy(userNamesWithData = names) } }
+            .launchIn(viewModelScope)
+    }
 
     /** Updates the login text field value. */
     fun onLoginInputChanged(value: String) {
@@ -173,13 +192,16 @@ class WorkoutViewModel @Inject constructor(
             mutableState.update { it.copy(isSaving = true) }
             saveWorkoutSessionUseCase(currentUser, exercise, validSets)
                 .onSuccess {
-                    mutableState.value = WorkoutUiState(
-                        userName = currentUser,
-                        loginInput = currentUser,
-                        screenState = ScreenState.IDLE,
-                        weightUnit = current.weightUnit,
-                        successMessage = "Workout saved"
-                    )
+                    mutableState.update { old ->
+                        WorkoutUiState(
+                            userName = currentUser,
+                            loginInput = currentUser,
+                            screenState = ScreenState.IDLE,
+                            weightUnit = current.weightUnit,
+                            successMessage = "Workout saved",
+                            userNamesWithData = old.userNamesWithData
+                        )
+                    }
                     observeSearch("")
                 }
                 .onFailure { throwable ->
@@ -221,9 +243,60 @@ class WorkoutViewModel @Inject constructor(
             loginInput = state.userName,
             screenState = ScreenState.IDLE,
             weightUnit = state.weightUnit,
-            showAbandonDialog = false
+            showAbandonDialog = false,
+            userNamesWithData = state.userNamesWithData
         )
         observeSearch("")
+    }
+
+    /** Opens the dialog to pick which user’s CSV to share. */
+    fun onShareCsvClicked() {
+        val s = mutableState.value
+        val default = when {
+            s.userName.isNotBlank() && s.userName in s.userNamesWithData -> s.userName
+            s.userNamesWithData.isNotEmpty() -> s.userNamesWithData.first()
+            else -> ""
+        }
+        mutableState.update {
+            it.copy(showShareCsvDialog = true, shareCsvSelectedUser = default)
+        }
+    }
+
+    fun onShareCsvDialogDismiss() {
+        mutableState.update { it.copy(showShareCsvDialog = false) }
+    }
+
+    fun onShareCsvUserSelected(user: String) {
+        mutableState.update { it.copy(shareCsvSelectedUser = user) }
+    }
+
+    /** Builds a CSV for the selected user and emits its content Uri for the activity share sheet. */
+    fun onShareCsvConfirmed() {
+        val user = mutableState.value.shareCsvSelectedUser
+        if (user.isBlank()) {
+            mutableState.update { it.copy(errorMessage = "Pick a user to export") }
+            return
+        }
+        mutableState.update { it.copy(showShareCsvDialog = false, isExportingCsv = true) }
+        viewModelScope.launch {
+            exportToCsvUseCase(user)
+                .onSuccess { uri ->
+                    mutableState.update { it.copy(isExportingCsv = false) }
+                    if (uri != null) {
+                        shareCsvUriEventsMutable.emit(uri)
+                    } else {
+                        mutableState.update { it.copy(errorMessage = "Could not create CSV file") }
+                    }
+                }
+                .onFailure { throwable ->
+                    mutableState.update {
+                        it.copy(
+                            isExportingCsv = false,
+                            errorMessage = throwable.message ?: "Export failed"
+                        )
+                    }
+                }
+        }
     }
 
     /** Clears one-time success banner message after shown. */

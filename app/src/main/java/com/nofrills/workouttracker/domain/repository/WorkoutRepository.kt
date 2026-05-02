@@ -2,6 +2,7 @@ package com.nofrills.workouttracker.domain.repository
 
 import android.net.Uri
 import com.nofrills.workouttracker.domain.model.WorkoutSession
+import kotlinx.coroutines.flow.Flow
 
 /** Contract for writing and reading workout sessions. */
 interface WorkoutRepository {
@@ -13,4 +14,7 @@ interface WorkoutRepository {
 
     /** Exports full history to a timestamped CSV file. */
     suspend fun exportAllSessionsToCsv(userName: String): Result<Uri?>
+
+    /** Emits sorted distinct usernames that have saved sessions. */
+    fun observeUserNamesWithData(): Flow<List<String>>
 }

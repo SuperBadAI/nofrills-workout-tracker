@@ -33,5 +33,9 @@ data class WorkoutUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val showAbandonDialog: Boolean = false,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val userNamesWithData: List<String> = emptyList(),
+    val showShareCsvDialog: Boolean = false,
+    val shareCsvSelectedUser: String = "",
+    val isExportingCsv: Boolean = false
 )

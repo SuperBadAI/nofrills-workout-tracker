@@ -30,4 +30,10 @@ interface WorkoutSessionDao {
     @Transaction
     @Query("SELECT * FROM workout_sessions WHERE user_name = :userName ORDER BY completed_at_millis DESC")
     suspend fun getAllSessionsWithExerciseAndSetsOnce(userName: String): List<SessionWithExerciseAndSets>
+
+    /** Distinct usernames that have at least one saved session (for export/share). */
+    @Query(
+        "SELECT DISTINCT user_name FROM workout_sessions ORDER BY user_name COLLATE NOCASE ASC"
+    )
+    fun observeDistinctUserNames(): Flow<List<String>>
 }

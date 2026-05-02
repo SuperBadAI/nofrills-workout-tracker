@@ -12,6 +12,7 @@ import com.nofrills.workouttracker.data.mapper.toSessionEntity
 import com.nofrills.workouttracker.domain.model.WorkoutSession
 import com.nofrills.workouttracker.domain.repository.WorkoutRepository
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -50,7 +51,10 @@ class WorkoutRepositoryImpl @Inject constructor(
     override suspend fun exportAllSessionsToCsv(userName: String): Result<Uri?> = withContext(ioDispatcher) {
         runCatching {
             val sessions = workoutSessionDao.getAllSessionsWithExerciseAndSetsOnce(userName).map { it.toDomain() }
-            csvManager.exportAllData(sessions)
+            csvManager.exportAllData(sessions, userName)
         }
     }
+
+    override fun observeUserNamesWithData(): Flow<List<String>> =
+        workoutSessionDao.observeDistinctUserNames()
 }

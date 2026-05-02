@@ -3,6 +3,7 @@ package com.nofrills.workouttracker.di
 import com.nofrills.workouttracker.domain.repository.ExerciseRepository
 import com.nofrills.workouttracker.domain.repository.WorkoutRepository
 import com.nofrills.workouttracker.domain.usecase.ExportToCsvUseCase
+import com.nofrills.workouttracker.domain.usecase.ObserveUserNamesWithDataUseCase
 import com.nofrills.workouttracker.domain.usecase.GetLastSessionForExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.GetOrCreateExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.SaveWorkoutSessionUseCase
@@ -36,4 +37,9 @@ object UseCaseModule {
     /** Provides ExportToCsvUseCase. */
     @Provides
     fun provideExportToCsvUseCase(repository: WorkoutRepository) = ExportToCsvUseCase(repository)
+
+    /** Provides ObserveUserNamesWithDataUseCase. */
+    @Provides
+    fun provideObserveUserNamesWithDataUseCase(repository: WorkoutRepository) =
+        ObserveUserNamesWithDataUseCase(repository)
 }

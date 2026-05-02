@@ -48,11 +48,15 @@ class CsvManager @Inject constructor(
         }
     }
 
-    /** Exports all historical sessions to a timestamped CSV file and returns its Uri. */
-    suspend fun exportAllData(sessions: List<WorkoutSession>): Uri? = withContext(ioDispatcher) {
+    /**
+     * Exports all historical sessions to a timestamped CSV file and returns its Uri.
+     * [userNameForFile] is sanitized for the download filename (which user the export is for).
+     */
+    suspend fun exportAllData(sessions: List<WorkoutSession>, userNameForFile: String): Uri? = withContext(ioDispatcher) {
+        val safe = sanitizeFileLabel(userNameForFile)
+        val now = System.currentTimeMillis()
+        val exportName = "nofrills_workout_${safe}_$now.csv"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val now = System.currentTimeMillis()
-            val exportName = "nofrills_workout_export_${now}.csv"
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, exportName)
                 put(MediaStore.Downloads.MIME_TYPE, "text/csv")
@@ -69,7 +73,7 @@ class CsvManager @Inject constructor(
         } else {
             val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "NoFrillsWorkoutTracker")
             if (!dir.exists()) dir.mkdirs()
-            val outFile = File(dir, "nofrills_workout_export_${System.currentTimeMillis()}.csv")
+            val outFile = File(dir, exportName)
             outFile.bufferedWriter().use { writer ->
                 writer.append(header)
                 sessions.forEach { session -> writeSessionLines(writer, session) }
@@ -93,6 +97,12 @@ class CsvManager @Inject constructor(
             }
             Uri.fromFile(file)
         }
+    }
+
+    private fun sanitizeFileLabel(raw: String): String {
+        val collapsed = raw.trim().lowercase(Locale.US).replace(Regex("[^a-z0-9_-]+"), "_")
+        val trimmed = collapsed.trim('_').replace(Regex("_+"), "_")
+        return trimmed.take(40).ifBlank { "user" }
     }
 
     private fun writeSessionLines(writer: java.io.BufferedWriter, session: WorkoutSession) {
