@@ -12,7 +12,9 @@ private val DarkColors = darkColorScheme(
     secondary = Color(0xFFE94560),
     background = Color(0xFF0F0F0F),
     surface = Color(0xFF1C1C1C),
-    onSurface = Color(0xFFE0E0E0)
+    onBackground = Color(0xFFBDBDBD),
+    onSurface = Color(0xFFBDBDBD),
+    onSurfaceVariant = Color(0xFF9E9E9E)
 )
 
 private val LightColors = lightColorScheme(
@@ -20,7 +22,9 @@ private val LightColors = lightColorScheme(
     secondary = Color(0xFFE94560),
     background = Color(0xFFF5F5F5),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1A1A1A)
+    onBackground = Color(0xFF5C5C5C),
+    onSurface = Color(0xFF5C5C5C),
+    onSurfaceVariant = Color(0xFF757575)
 )
 
 /** Applies the **No Frills Workout Tracker** Material 3 color palette to Compose content. */

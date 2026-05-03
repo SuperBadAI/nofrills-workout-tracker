@@ -58,6 +58,9 @@ fun WorkoutScreen(
         onSetUpdated = viewModel::onSetUpdated,
         onAddDropSet = viewModel::onAddDropSet,
         onAddSet = viewModel::onAddSet,
+        onRemoveSet = viewModel::onRemoveSet,
+        onExerciseNameDraftChanged = viewModel::onExerciseNameDraftChanged,
+        onSaveExerciseName = viewModel::onSaveExerciseName,
         onCompleteWorkout = viewModel::onCompleteWorkout,
         onBackFromExercise = viewModel::onBackFromExercise,
         onDismissAbandon = viewModel::dismissAbandonDialog,
@@ -84,6 +87,9 @@ fun WorkoutScreenContent(
     onSetUpdated: (Int, String, String) -> Unit,
     onAddDropSet: (Int) -> Unit,
     onAddSet: () -> Unit,
+    onRemoveSet: (Int) -> Unit,
+    onExerciseNameDraftChanged: (String) -> Unit,
+    onSaveExerciseName: () -> Unit,
     onCompleteWorkout: () -> Unit,
     onBackFromExercise: () -> Unit,
     onDismissAbandon: () -> Unit,
@@ -162,7 +168,30 @@ fun WorkoutScreenContent(
                     ) {
                         Text(if (state.isExportingCsv) "Preparing CSV…" else "Share workout CSV…")
                     }
-                    Text(text = state.selectedExercise?.name.orEmpty())
+                    val selected = state.selectedExercise
+                    val nameDirty = selected != null &&
+                        state.exerciseNameDraft.trim().isNotBlank() &&
+                        !state.exerciseNameDraft.trim().equals(selected.name, ignoreCase = true)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = state.exerciseNameDraft,
+                            onValueChange = onExerciseNameDraftChanged,
+                            label = { Text("Exercise") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            enabled = !state.isRenamingExercise
+                        )
+                        TextButton(
+                            onClick = onSaveExerciseName,
+                            enabled = nameDirty && !state.isRenamingExercise
+                        ) {
+                            Text(if (state.isRenamingExercise) "…" else "Save name")
+                        }
+                    }
                     LastSessionSummary(
                         session = state.previousSession,
                         weightUnit = state.weightUnit,
@@ -181,6 +210,7 @@ fun WorkoutScreenContent(
                         )
                     }
 
+                    val canRemoveAnySet = state.currentSets.size > 1
                     state.currentSets.forEachIndexed { index, set ->
                         val previous = state.previousSession?.sets?.firstOrNull {
                             it.setNumber == set.setNumber && it.isDropSet == set.isDropSet
@@ -197,7 +227,9 @@ fun WorkoutScreenContent(
                                 currentReps = set.reps,
                                 currentWeight = set.weightKg,
                                 onRepsChange = { onSetUpdated(index, it, set.weightKg) },
-                                onWeightChange = { onSetUpdated(index, set.reps, it) }
+                                onWeightChange = { onSetUpdated(index, set.reps, it) },
+                                canRemoveSet = canRemoveAnySet,
+                                onRemoveSet = { onRemoveSet(index) }
                             )
                         } else {
                             SetRow(
@@ -209,7 +241,9 @@ fun WorkoutScreenContent(
                                 currentWeight = set.weightKg,
                                 onRepsChange = { onSetUpdated(index, it, set.weightKg) },
                                 onWeightChange = { onSetUpdated(index, set.reps, it) },
-                                onAddDropSet = { onAddDropSet(index) }
+                                onAddDropSet = { onAddDropSet(index) },
+                                canRemoveSet = canRemoveAnySet,
+                                onRemoveSet = { onRemoveSet(index) }
                             )
                         }
                     }
@@ -291,6 +325,7 @@ private fun WorkoutScreenContentPreview() {
             screenState = ScreenState.EXERCISE_SELECTED,
             userName = "Adam",
             selectedExercise = Exercise(id = 1, name = "Bench Press"),
+            exerciseNameDraft = "Bench Press",
             currentSets = listOf(
                 MutableSetInput(setNumber = 1),
                 MutableSetInput(setNumber = 1, isDropSet = true)
@@ -305,6 +340,9 @@ private fun WorkoutScreenContentPreview() {
         onSetUpdated = { _, _, _ -> },
         onAddDropSet = {},
         onAddSet = {},
+        onRemoveSet = {},
+        onExerciseNameDraftChanged = {},
+        onSaveExerciseName = {},
         onCompleteWorkout = {},
         onBackFromExercise = {},
         onDismissAbandon = {},

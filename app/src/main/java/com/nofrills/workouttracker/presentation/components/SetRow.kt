@@ -5,7 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +31,8 @@ fun SetRow(
     onRepsChange: (String) -> Unit,
     onWeightChange: (String) -> Unit,
     onAddDropSet: () -> Unit,
+    canRemoveSet: Boolean,
+    onRemoveSet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -56,7 +62,12 @@ fun SetRow(
             ),
             singleLine = true
         )
-        Button(onClick = onAddDropSet) { Text("+ Drop Set") }
+        if (canRemoveSet) {
+            IconButton(onClick = onRemoveSet) {
+                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Remove set")
+            }
+        }
+        Button(onClick = onAddDropSet) { Text("+ Drop") }
     }
 }
 
@@ -72,6 +83,8 @@ private fun SetRowPreview() {
         currentWeight = "",
         onRepsChange = {},
         onWeightChange = {},
-        onAddDropSet = {}
+        onAddDropSet = {},
+        canRemoveSet = false,
+        onRemoveSet = {}
     )
 }

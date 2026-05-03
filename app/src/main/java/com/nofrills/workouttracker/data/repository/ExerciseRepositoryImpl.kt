@@ -44,4 +44,17 @@ class ExerciseRepositoryImpl @Inject constructor(
             inserted.toDomain()
         }
     }
+
+    override suspend fun renameExercise(id: Long, newName: String): Result<Exercise> = withContext(ioDispatcher) {
+        runCatching {
+            val normalized = newName.trim()
+            require(normalized.isNotBlank()) { "Exercise name cannot be empty" }
+            val self = exerciseDao.findById(id) ?: error("Exercise not found")
+            if (self.name.equals(normalized, ignoreCase = true)) return@runCatching self.toDomain()
+            val clash = exerciseDao.findByExactName(normalized)
+            require(clash == null || clash.id == id) { "An exercise with that name already exists" }
+            exerciseDao.updateName(id, normalized)
+            exerciseDao.findById(id)!!.toDomain()
+        }
+    }
 }

@@ -7,6 +7,7 @@ import com.nofrills.workouttracker.domain.usecase.ObserveUserNamesWithDataUseCas
 import com.nofrills.workouttracker.domain.usecase.GetLastSessionForExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.GetOrCreateExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.SaveWorkoutSessionUseCase
+import com.nofrills.workouttracker.domain.usecase.RenameExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.SearchExercisesUseCase
 import dagger.Module
 import dagger.Provides
@@ -24,6 +25,10 @@ object UseCaseModule {
     /** Provides GetOrCreateExerciseUseCase. */
     @Provides
     fun provideGetOrCreateExerciseUseCase(repository: ExerciseRepository) = GetOrCreateExerciseUseCase(repository)
+
+    /** Provides RenameExerciseUseCase. */
+    @Provides
+    fun provideRenameExerciseUseCase(repository: ExerciseRepository) = RenameExerciseUseCase(repository)
 
     /** Provides GetLastSessionForExerciseUseCase. */
     @Provides

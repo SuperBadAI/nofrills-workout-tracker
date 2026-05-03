@@ -28,6 +28,9 @@ data class WorkoutUiState(
     val searchQuery: String = "",
     val searchResults: List<Exercise> = emptyList(),
     val selectedExercise: Exercise? = null,
+    /** Editable label while logging; kept in sync when an exercise is selected. */
+    val exerciseNameDraft: String = "",
+    val isRenamingExercise: Boolean = false,
     val previousSession: WorkoutSession? = null,
     val currentSets: List<MutableSetInput> = emptyList(),
     val isSaving: Boolean = false,

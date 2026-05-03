@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import android.util.Log
 import com.nofrills.workouttracker.di.IoDispatcher
 import com.nofrills.workouttracker.domain.model.WorkoutSession
+import com.nofrills.workouttracker.domain.model.WorkoutSet
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,9 +29,14 @@ class CsvManager @Inject constructor(
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
-    private val fileName = "nofrills_workout_log.csv"
+    /** v2 log so rows stay aligned with header that includes both kg and lbs. */
+    private val fileName = "nofrills_workout_log_v2.csv"
     private val folderName = "Download/NoFrillsWorkoutTracker"
-    private val header = "date,time,user,exercise,set_number,is_drop_set,parent_set,reps,weight_kg\n"
+    private val header = "date,time,user,exercise,set_number,is_drop_set,parent_set,reps,weight_kg,weight_lbs\n"
+
+    companion object {
+        private const val KG_TO_LBS = 2.2046226218487757
+    }
 
     /** Appends one completed session to running CSV log file. */
     suspend fun appendSession(session: WorkoutSession) = withContext(ioDispatcher) {
@@ -40,10 +46,7 @@ class CsvManager @Inject constructor(
             session.sets.forEach { set ->
                 val date = Date(session.completedAt)
                 val label = if (set.isDropSet) "${set.setNumber}A" else set.setNumber.toString()
-                writer.append(
-                    "${dateFormat.format(date)},${timeFormat.format(date)},${session.userName},${session.exercise.name}," +
-                        "$label,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},${set.weightKg}\n"
-                )
+                writer.append(csvLine(session, date, label, set))
             }
         }
     }
@@ -109,11 +112,15 @@ class CsvManager @Inject constructor(
         val date = Date(session.completedAt)
         session.sets.forEach { set ->
             val label = if (set.isDropSet) "${set.setNumber}A" else set.setNumber.toString()
-            writer.append(
-                "${dateFormat.format(date)},${timeFormat.format(date)},${session.userName},${session.exercise.name}," +
-                    "$label,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},${set.weightKg}\n"
-            )
+            writer.append(csvLine(session, date, label, set))
         }
+    }
+
+    private fun csvLine(session: WorkoutSession, date: Date, setLabel: String, set: WorkoutSet): String {
+        val lbs = set.weightKg * KG_TO_LBS
+        val lbsFormatted = String.format(Locale.US, "%.2f", lbs)
+        return "${dateFormat.format(date)},${timeFormat.format(date)},${session.userName},${session.exercise.name}," +
+            "$setLabel,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},${set.weightKg},$lbsFormatted\n"
     }
 
     private fun createLogUriQ(): Uri? {

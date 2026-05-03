@@ -9,6 +9,7 @@ import com.nofrills.workouttracker.domain.usecase.ExportToCsvUseCase
 import com.nofrills.workouttracker.domain.usecase.GetLastSessionForExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.GetOrCreateExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.ObserveUserNamesWithDataUseCase
+import com.nofrills.workouttracker.domain.usecase.RenameExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.SaveWorkoutSessionUseCase
 import com.nofrills.workouttracker.domain.usecase.SearchExercisesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +34,7 @@ class WorkoutViewModel @Inject constructor(
     private val getLastSessionForExerciseUseCase: GetLastSessionForExerciseUseCase,
     private val saveWorkoutSessionUseCase: SaveWorkoutSessionUseCase,
     private val exportToCsvUseCase: ExportToCsvUseCase,
+    private val renameExerciseUseCase: RenameExerciseUseCase,
     observeUserNamesWithDataUseCase: ObserveUserNamesWithDataUseCase
 ) : ViewModel() {
 
@@ -101,6 +103,7 @@ class WorkoutViewModel @Inject constructor(
             it.copy(
                 screenState = ScreenState.EXERCISE_SELECTED,
                 selectedExercise = exercise,
+                exerciseNameDraft = exercise.name,
                 searchQuery = exercise.name,
                 currentSets = listOf(MutableSetInput(setNumber = 1)),
                 errorMessage = null
@@ -159,10 +162,83 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    /** Removes one set row by index when valid. */
+    /** Updates the in-progress exercise name field (saved with [onSaveExerciseName]). */
+    fun onExerciseNameDraftChanged(value: String) {
+        mutableState.update { it.copy(exerciseNameDraft = value) }
+    }
+
+    /** Persists [exerciseNameDraft] as the canonical exercise name for this lift. */
+    fun onSaveExerciseName() {
+        val exercise = mutableState.value.selectedExercise ?: return
+        val draft = mutableState.value.exerciseNameDraft.trim()
+        if (draft.isBlank()) {
+            mutableState.update { it.copy(errorMessage = "Exercise name cannot be empty") }
+            return
+        }
+        if (draft.equals(exercise.name, ignoreCase = true)) {
+            mutableState.update { it.copy(exerciseNameDraft = exercise.name) }
+            return
+        }
+        viewModelScope.launch {
+            mutableState.update { it.copy(isRenamingExercise = true, errorMessage = null) }
+            renameExerciseUseCase(exercise.id, draft)
+                .onSuccess { updated ->
+                    mutableState.update { s ->
+                        s.copy(
+                            isRenamingExercise = false,
+                            selectedExercise = updated,
+                            exerciseNameDraft = updated.name,
+                            searchQuery = updated.name,
+                            previousSession = s.previousSession?.copy(exercise = updated),
+                            successMessage = "Exercise name updated"
+                        )
+                    }
+                }
+                .onFailure { throwable ->
+                    mutableState.update {
+                        it.copy(
+                            isRenamingExercise = false,
+                            errorMessage = throwable.message ?: "Could not rename exercise"
+                        )
+                    }
+                }
+        }
+    }
+
+    /** Removes one set row (and any drop sets for that set when removing a main set); renumbers remaining rows. */
     fun onRemoveSet(index: Int) {
         mutableState.update { state ->
-            state.copy(currentSets = state.currentSets.filterIndexed { i, _ -> i != index })
+            val list = state.currentSets
+            val target = list.getOrNull(index) ?: return@update state
+            val filtered = if (target.isDropSet) {
+                list.filterIndexed { i, _ -> i != index }
+            } else {
+                val n = target.setNumber
+                list.filterIndexed { i, row ->
+                    when {
+                        i == index -> false
+                        row.isDropSet && row.setNumber == n -> false
+                        else -> true
+                    }
+                }
+            }
+            var renumbered = renumberMutableSets(filtered)
+            if (renumbered.isEmpty()) {
+                renumbered = listOf(MutableSetInput(setNumber = 1))
+            }
+            state.copy(currentSets = renumbered)
+        }
+    }
+
+    private fun renumberMutableSets(rows: List<MutableSetInput>): List<MutableSetInput> {
+        var main = 0
+        return rows.map { row ->
+            if (!row.isDropSet) {
+                main++
+                row.copy(setNumber = main)
+            } else {
+                row.copy(setNumber = main)
+            }
         }
     }
 

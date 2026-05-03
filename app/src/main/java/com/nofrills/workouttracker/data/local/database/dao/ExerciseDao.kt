@@ -22,7 +22,15 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises WHERE lower(name) = lower(:name) LIMIT 1")
     suspend fun findByExactName(name: String): ExerciseEntity?
 
+    /** Loads one exercise by primary key. */
+    @Query("SELECT * FROM exercises WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): ExerciseEntity?
+
     /** Inserts a new exercise name and returns generated id. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertExercise(exerciseEntity: ExerciseEntity): Long
+
+    /** Updates display name (must stay unique; callers should validate). */
+    @Query("UPDATE exercises SET name = :name WHERE id = :id")
+    suspend fun updateName(id: Long, name: String)
 }
