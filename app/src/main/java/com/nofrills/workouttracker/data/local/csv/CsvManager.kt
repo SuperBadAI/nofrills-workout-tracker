@@ -118,9 +118,10 @@ class CsvManager @Inject constructor(
 
     private fun csvLine(session: WorkoutSession, date: Date, setLabel: String, set: WorkoutSet): String {
         val lbs = set.weightKg * KG_TO_LBS
-        val lbsFormatted = String.format(Locale.US, "%.2f", lbs)
+        val kgFormatted = String.format(Locale.US, "%.1f", set.weightKg)
+        val lbsFormatted = String.format(Locale.US, "%.1f", lbs)
         return "${dateFormat.format(date)},${timeFormat.format(date)},${session.userName},${session.exercise.name}," +
-            "$setLabel,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},${set.weightKg},$lbsFormatted\n"
+            "$setLabel,${set.isDropSet},${set.parentSetId ?: ""},${set.reps},$kgFormatted,$lbsFormatted\n"
     }
 
     private fun createLogUriQ(): Uri? {

@@ -10,9 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -26,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,7 +40,6 @@ import com.nofrills.workouttracker.domain.model.Exercise
 import com.nofrills.workouttracker.presentation.components.AddSetButton
 import com.nofrills.workouttracker.presentation.components.DropSetRow
 import com.nofrills.workouttracker.presentation.components.ExerciseSearchBar
-import com.nofrills.workouttracker.presentation.components.LastSessionSummary
 import com.nofrills.workouttracker.presentation.components.SetRow
 
 /** Single-screen workout logging UI for **No Frills Workout Tracker**. */
@@ -102,6 +107,7 @@ fun WorkoutScreenContent(
     onShareCsvConfirmed: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val workoutScrollState = rememberScrollState()
 
     LaunchedEffect(state.successMessage, state.errorMessage) {
         state.successMessage?.let {
@@ -114,17 +120,31 @@ fun WorkoutScreenContent(
         }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(16.dp)
+                .then(
+                    if (state.screenState == ScreenState.EXERCISE_SELECTED) {
+                        Modifier.verticalScroll(workoutScrollState)
+                    } else {
+                        Modifier
+                    }
+                ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             when (state.screenState) {
                 ScreenState.LOGIN -> {
-                    Text("Welcome to No Frills Workout Tracker")
+                    Text(
+                        text = "Welcome to No Frills Workout Tracker",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     OutlinedTextField(
                         value = state.loginInput,
                         onValueChange = onLoginInputChanged,
@@ -139,7 +159,7 @@ fun WorkoutScreenContent(
                 }
 
                 ScreenState.IDLE -> {
-                    Text("Logged in as ${state.userName}")
+                    LoggedInHeader(userName = state.userName)
                     OutlinedButton(
                         onClick = onShareCsvClicked,
                         enabled = !state.isExportingCsv,
@@ -158,6 +178,7 @@ fun WorkoutScreenContent(
                 }
 
                 ScreenState.EXERCISE_SELECTED -> {
+                    LoggedInHeader(userName = state.userName)
                     TextButton(onClick = onBackFromExercise, modifier = Modifier.fillMaxWidth()) {
                         Text("← Change exercise")
                     }
@@ -192,11 +213,6 @@ fun WorkoutScreenContent(
                             Text(if (state.isRenamingExercise) "…" else "Save name")
                         }
                     }
-                    LastSessionSummary(
-                        session = state.previousSession,
-                        weightUnit = state.weightUnit,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = state.weightUnit == WeightUnit.KG,
@@ -211,10 +227,13 @@ fun WorkoutScreenContent(
                     }
 
                     val canRemoveAnySet = state.currentSets.size > 1
+                    val previousSets = state.previousSession
+                        ?.sets
+                        ?.sortedWith(compareBy({ it.setNumber }, { it.isDropSet }))
+                        .orEmpty()
                     state.currentSets.forEachIndexed { index, set ->
-                        val previous = state.previousSession?.sets?.firstOrNull {
-                            it.setNumber == set.setNumber && it.isDropSet == set.isDropSet
-                        }
+                        val previous = previousSets.getOrNull(index)
+                            ?.takeIf { it.setNumber == set.setNumber && it.isDropSet == set.isDropSet }
                         val previousWeightInUnit = previous?.weightKg?.let { kg ->
                             if (state.weightUnit == WeightUnit.KG) kg else kg * 2.2046226f
                         }
@@ -248,7 +267,7 @@ fun WorkoutScreenContent(
                         }
                     }
 
-                    AddSetButton(onClick = onAddSet)
+                    AddSetButton(onClick = onAddSet, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                     val canComplete = state.currentSets.any { (it.reps.toIntOrNull() ?: 0) > 0 }
                     Button(
@@ -314,6 +333,32 @@ fun WorkoutScreenContent(
             },
             dismissButton = { TextButton(onClick = onShareCsvDialogDismiss) { Text("Cancel") } }
         )
+    }
+}
+
+/** Standard signed-in heading shown above every post-login screen. */
+@Composable
+private fun LoggedInHeader(userName: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "No Frills Workout Tracker",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                text = "Logged in as $userName",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }
 

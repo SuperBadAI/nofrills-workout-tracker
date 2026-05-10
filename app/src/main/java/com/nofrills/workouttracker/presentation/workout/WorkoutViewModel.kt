@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** ViewModel that coordinates login, search, set edits, and save flow for **No Frills Workout Tracker**. */
 @HiltViewModel
@@ -106,13 +107,23 @@ class WorkoutViewModel @Inject constructor(
                 exerciseNameDraft = exercise.name,
                 searchQuery = exercise.name,
                 currentSets = listOf(MutableSetInput(setNumber = 1)),
+                previousSession = null,
                 errorMessage = null
             )
         }
         viewModelScope.launch {
             getLastSessionForExerciseUseCase(exercise.id, currentUser)
                 .onSuccess { session ->
-                    mutableState.update { state -> state.copy(previousSession = session?.copy(exercise = exercise)) }
+                    mutableState.update { state ->
+                        if (state.selectedExercise?.id != exercise.id) {
+                            state
+                        } else {
+                            state.copy(
+                                previousSession = session?.copy(exercise = exercise),
+                                currentSets = buildInitialSetInputs(session?.sets)
+                            )
+                        }
+                    }
                 }
                 .onFailure { throwable ->
                     mutableState.update { it.copy(errorMessage = throwable.message ?: "Failed loading previous session") }
@@ -254,7 +265,7 @@ class WorkoutViewModel @Inject constructor(
             WorkoutSet(
                 setNumber = input.setNumber,
                 reps = reps,
-                weightKg = enteredWeight.toKg(current.weightUnit),
+                weightKg = enteredWeight.toKg(current.weightUnit).roundToTenth(),
                 isDropSet = input.isDropSet,
                 parentSetId = input.parentSetId.takeIf { it != null && it > 0 }
             )
@@ -387,4 +398,22 @@ class WorkoutViewModel @Inject constructor(
 
     private fun Float.toKg(unit: WeightUnit): Float =
         if (unit == WeightUnit.KG) this else this * 0.45359237f
+
+    private fun Float.roundToTenth(): Float = (this * 10f).roundToInt() / 10f
+
+    private fun buildInitialSetInputs(previousSets: List<WorkoutSet>?): List<MutableSetInput> {
+        val sortedPrevious = previousSets
+            ?.sortedWith(compareBy<WorkoutSet> { it.setNumber }.thenBy { it.isDropSet })
+            .orEmpty()
+
+        if (sortedPrevious.isEmpty()) return listOf(MutableSetInput(setNumber = 1))
+
+        return sortedPrevious.map { previous ->
+            MutableSetInput(
+                setNumber = previous.setNumber,
+                isDropSet = previous.isDropSet,
+                parentSetId = previous.parentSetId
+            )
+        }
+    }
 }
