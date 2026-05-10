@@ -241,7 +241,7 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    /** Adds one drop set row under parent set index. */
+    /** Adds one drop set row directly under its parent set, after any existing add-on rows for that set. */
     fun onAddDropSet(parentSetIndex: Int) {
         mutableState.update { state ->
             val parent = state.currentSets.getOrNull(parentSetIndex) ?: return@update state
@@ -250,8 +250,25 @@ class WorkoutViewModel @Inject constructor(
                 isDropSet = true,
                 parentSetId = parent.setId.takeIf { it > 0 }
             )
-            state.copy(currentSets = state.currentSets + row)
+            val insertIndex = findDropSetInsertIndex(state.currentSets, parentSetIndex, parent.setNumber)
+            state.copy(currentSets = state.currentSets.toMutableList().apply { add(insertIndex, row) })
         }
+    }
+
+    private fun findDropSetInsertIndex(
+        rows: List<MutableSetInput>,
+        parentSetIndex: Int,
+        parentSetNumber: Int
+    ): Int {
+        var insertIndex = parentSetIndex + 1
+        while (
+            insertIndex < rows.size &&
+            rows[insertIndex].isDropSet &&
+            rows[insertIndex].setNumber == parentSetNumber
+        ) {
+            insertIndex++
+        }
+        return insertIndex
     }
 
     /** Updates the in-progress exercise name field (saved with [onSaveExerciseName]). */
