@@ -38,6 +38,8 @@ data class WorkoutUiState(
     val showAbandonDialog: Boolean = false,
     val successMessage: String? = null,
     val userNamesWithData: List<String> = emptyList(),
+    val deleteProfileCandidate: String? = null,
+    val isDeletingProfile: Boolean = false,
     val showShareCsvDialog: Boolean = false,
     val shareCsvSelectedUser: String = "",
     val isExportingCsv: Boolean = false

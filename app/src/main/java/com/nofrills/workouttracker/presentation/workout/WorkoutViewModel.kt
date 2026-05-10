@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nofrills.workouttracker.domain.model.Exercise
 import com.nofrills.workouttracker.domain.model.WorkoutSet
+import com.nofrills.workouttracker.domain.usecase.DeleteUserProfileUseCase
 import com.nofrills.workouttracker.domain.usecase.ExportToCsvUseCase
 import com.nofrills.workouttracker.domain.usecase.GetLastSessionForExerciseUseCase
 import com.nofrills.workouttracker.domain.usecase.GetOrCreateExerciseUseCase
@@ -37,6 +38,7 @@ class WorkoutViewModel @Inject constructor(
     private val saveWorkoutSessionUseCase: SaveWorkoutSessionUseCase,
     private val exportToCsvUseCase: ExportToCsvUseCase,
     private val renameExerciseUseCase: RenameExerciseUseCase,
+    private val deleteUserProfileUseCase: DeleteUserProfileUseCase,
     observeUserNamesWithDataUseCase: ObserveUserNamesWithDataUseCase
 ) : ViewModel() {
 
@@ -71,6 +73,7 @@ class WorkoutViewModel @Inject constructor(
                 userName = user,
                 loginInput = user,
                 screenState = ScreenState.IDLE,
+                deleteProfileCandidate = null,
                 errorMessage = null
             )
         }
@@ -86,10 +89,58 @@ class WorkoutViewModel @Inject constructor(
                 userName = user,
                 loginInput = user,
                 screenState = ScreenState.IDLE,
+                deleteProfileCandidate = null,
                 errorMessage = null
             )
         }
         observeSearch("")
+    }
+
+    /** Opens a confirmation prompt before permanently deleting a saved profile. */
+    fun onDeleteProfileRequested(userName: String) {
+        mutableState.update { it.copy(deleteProfileCandidate = userName) }
+    }
+
+    /** Closes the profile deletion confirmation prompt. */
+    fun onDeleteProfileDismissed() {
+        mutableState.update { it.copy(deleteProfileCandidate = null) }
+    }
+
+    /** Deletes all saved sessions for the selected profile and returns to login if it was active. */
+    fun onDeleteProfileConfirmed() {
+        val profile = mutableState.value.deleteProfileCandidate ?: return
+        viewModelScope.launch {
+            mutableState.update { it.copy(isDeletingProfile = true, errorMessage = null) }
+            deleteUserProfileUseCase(profile)
+                .onSuccess {
+                    mutableState.update { state ->
+                        val deletingCurrentUser = state.userName.equals(profile, ignoreCase = true)
+                        if (deletingCurrentUser) {
+                            WorkoutUiState(
+                                userNamesWithData = state.userNamesWithData.filterNot {
+                                    it.equals(profile, ignoreCase = true)
+                                },
+                                successMessage = "Profile deleted"
+                            )
+                        } else {
+                            state.copy(
+                                loginInput = state.loginInput.takeUnless { it.equals(profile, ignoreCase = true) }.orEmpty(),
+                                deleteProfileCandidate = null,
+                                isDeletingProfile = false,
+                                successMessage = "Profile deleted"
+                            )
+                        }
+                    }
+                }
+                .onFailure { throwable ->
+                    mutableState.update {
+                        it.copy(
+                            isDeletingProfile = false,
+                            errorMessage = throwable.message ?: "Could not delete profile"
+                        )
+                    }
+                }
+        }
     }
 
     /** Switches the weight unit used in set inputs. */
@@ -231,7 +282,11 @@ class WorkoutViewModel @Inject constructor(
                             exerciseNameDraft = updated.name,
                             searchQuery = updated.name,
                             previousSession = s.previousSession?.copy(exercise = updated),
-                            successMessage = "Exercise name updated"
+                            successMessage = if (updated.id == exercise.id) {
+                                "Exercise name updated"
+                            } else {
+                                "Exercise history merged"
+                            }
                         )
                     }
                 }

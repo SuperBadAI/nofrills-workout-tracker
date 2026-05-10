@@ -14,6 +14,6 @@ interface ExerciseRepository {
     /** Looks up or creates an exercise by name. */
     suspend fun getOrCreateExercise(name: String): Result<Exercise>
 
-    /** Renames an existing exercise; fails if [newName] is blank or collides with another exercise. */
+    /** Renames an existing exercise, or merges its history into an existing exercise with [newName]. */
     suspend fun renameExercise(id: Long, newName: String): Result<Exercise>
 }

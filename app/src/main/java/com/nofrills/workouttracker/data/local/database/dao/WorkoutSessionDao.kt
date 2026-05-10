@@ -36,4 +36,9 @@ interface WorkoutSessionDao {
         "SELECT DISTINCT user_name FROM workout_sessions ORDER BY user_name COLLATE NOCASE ASC"
     )
     fun observeDistinctUserNames(): Flow<List<String>>
+
+    /** Deletes all saved sessions for one profile; workout set rows cascade from their session foreign key. */
+    @Query("DELETE FROM workout_sessions WHERE user_name = :userName")
+    suspend fun deleteSessionsForUser(userName: String): Int
+
 }

@@ -57,4 +57,14 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun observeUserNamesWithData(): Flow<List<String>> =
         workoutSessionDao.observeDistinctUserNames()
+
+    /** Deletes one profile's saved sessions; exercises are shared names and remain available for other users. */
+    override suspend fun deleteUserProfile(userName: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching {
+            val normalized = userName.trim()
+            require(normalized.isNotBlank()) { "Choose a profile to delete" }
+            workoutSessionDao.deleteSessionsForUser(normalized)
+            Unit
+        }
+    }
 }

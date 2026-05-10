@@ -17,4 +17,7 @@ interface WorkoutRepository {
 
     /** Emits sorted distinct usernames that have saved sessions. */
     fun observeUserNamesWithData(): Flow<List<String>>
+
+    /** Deletes all saved workout data for one profile name. */
+    suspend fun deleteUserProfile(userName: String): Result<Unit>
 }

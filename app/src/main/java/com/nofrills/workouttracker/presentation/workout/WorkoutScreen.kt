@@ -17,11 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +72,9 @@ fun WorkoutScreen(
         onLoginInputChanged = viewModel::onLoginInputChanged,
         onLoginConfirmed = viewModel::onLoginConfirmed,
         onExistingUserSelected = viewModel::onExistingUserSelected,
+        onDeleteProfileRequested = viewModel::onDeleteProfileRequested,
+        onDeleteProfileDismissed = viewModel::onDeleteProfileDismissed,
+        onDeleteProfileConfirmed = viewModel::onDeleteProfileConfirmed,
         onWeightUnitChanged = viewModel::onWeightUnitChanged,
         onQueryChange = viewModel::onSearchQueryChanged,
         onExerciseSelected = viewModel::onExerciseSelected,
@@ -98,6 +105,9 @@ fun WorkoutScreenContent(
     onLoginInputChanged: (String) -> Unit,
     onLoginConfirmed: () -> Unit,
     onExistingUserSelected: (String) -> Unit,
+    onDeleteProfileRequested: (String) -> Unit,
+    onDeleteProfileDismissed: () -> Unit,
+    onDeleteProfileConfirmed: () -> Unit,
     onWeightUnitChanged: (WeightUnit) -> Unit,
     onQueryChange: (String) -> Unit,
     onExerciseSelected: (Exercise) -> Unit,
@@ -164,7 +174,8 @@ fun WorkoutScreenContent(
                         existingUsers = state.userNamesWithData,
                         onLoginInputChanged = onLoginInputChanged,
                         onLoginConfirmed = onLoginConfirmed,
-                        onExistingUserSelected = onExistingUserSelected
+                        onExistingUserSelected = onExistingUserSelected,
+                        onDeleteProfileRequested = onDeleteProfileRequested
                     )
                 }
 
@@ -302,6 +313,29 @@ fun WorkoutScreenContent(
         )
     }
 
+    state.deleteProfileCandidate?.let { profile ->
+        AlertDialog(
+            onDismissRequest = onDeleteProfileDismissed,
+            title = { Text("Delete profile?") },
+            text = {
+                Text("This deletes all saved workouts for $profile from this device. This cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = onDeleteProfileConfirmed,
+                    enabled = !state.isDeletingProfile
+                ) {
+                    Text(if (state.isDeletingProfile) "Deleting..." else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDeleteProfileDismissed, enabled = !state.isDeletingProfile) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (state.showShareCsvDialog) {
         AlertDialog(
             onDismissRequest = onShareCsvDialogDismiss,
@@ -366,6 +400,7 @@ private fun LoginHome(
     onLoginInputChanged: (String) -> Unit,
     onLoginConfirmed: () -> Unit,
     onExistingUserSelected: (String) -> Unit,
+    onDeleteProfileRequested: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -393,6 +428,7 @@ private fun LoginHome(
         ExistingUsersCard(
             users = existingUsers,
             onExistingUserSelected = onExistingUserSelected,
+            onDeleteProfileRequested = onDeleteProfileRequested,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -415,6 +451,7 @@ private fun LoginHome(
 private fun ExistingUsersCard(
     users: List<String>,
     onExistingUserSelected: (String) -> Unit,
+    onDeleteProfileRequested: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -440,11 +477,20 @@ private fun ExistingUsersCard(
                 )
             } else {
                 users.forEach { user ->
-                    OutlinedButton(
-                        onClick = { onExistingUserSelected(user) },
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(user)
+                        OutlinedButton(
+                            onClick = { onExistingUserSelected(user) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(user)
+                        }
+                        IconButton(onClick = { onDeleteProfileRequested(user) }) {
+                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "Delete $user profile")
+                        }
                     }
                 }
             }
@@ -495,6 +541,9 @@ private fun WorkoutScreenContentPreview() {
         onLoginInputChanged = {},
         onLoginConfirmed = {},
         onExistingUserSelected = {},
+        onDeleteProfileRequested = {},
+        onDeleteProfileDismissed = {},
+        onDeleteProfileConfirmed = {},
         onWeightUnitChanged = {},
         onQueryChange = {},
         onExerciseSelected = {},

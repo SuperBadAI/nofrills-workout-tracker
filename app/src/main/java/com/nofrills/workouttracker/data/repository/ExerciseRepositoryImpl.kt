@@ -52,7 +52,10 @@ class ExerciseRepositoryImpl @Inject constructor(
             val self = exerciseDao.findById(id) ?: error("Exercise not found")
             if (self.name.equals(normalized, ignoreCase = true)) return@runCatching self.toDomain()
             val clash = exerciseDao.findByExactName(normalized)
-            require(clash == null || clash.id == id) { "An exercise with that name already exists" }
+            if (clash != null && clash.id != id) {
+                exerciseDao.mergeExerciseInto(sourceExerciseId = id, targetExerciseId = clash.id)
+                return@runCatching clash.toDomain()
+            }
             exerciseDao.updateName(id, normalized)
             exerciseDao.findById(id)!!.toDomain()
         }
