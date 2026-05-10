@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /** ViewModel that coordinates login, search, set edits, and save flow for **No Frills Workout Tracker**. */
@@ -78,7 +79,18 @@ class WorkoutViewModel @Inject constructor(
 
     /** Switches the weight unit used in set inputs. */
     fun onWeightUnitChanged(unit: WeightUnit) {
-        mutableState.update { it.copy(weightUnit = unit) }
+        mutableState.update { state ->
+            if (state.weightUnit == unit) {
+                state
+            } else {
+                state.copy(
+                    weightUnit = unit,
+                    currentSets = state.currentSets.map { row ->
+                        row.copy(weightKg = row.weightKg.convertWeightInput(state.weightUnit, unit))
+                    }
+                )
+            }
+        }
     }
 
     /** Updates query text and triggers reactive search. */
@@ -97,7 +109,7 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    /** Selects an exercise and loads previous session hints for current user. */
+    /** Selects an exercise and pre-fills current rows from the latest matching session for this user. */
     fun onExerciseSelected(exercise: Exercise) {
         val currentUser = mutableState.value.userName
         mutableState.update {
@@ -120,7 +132,10 @@ class WorkoutViewModel @Inject constructor(
                         } else {
                             state.copy(
                                 previousSession = session?.copy(exercise = exercise),
-                                currentSets = buildInitialSetInputs(session?.sets)
+                                currentSets = buildInitialSetInputs(
+                                    previousSets = session?.sets,
+                                    weightUnit = state.weightUnit
+                                )
                             )
                         }
                     }
@@ -399,9 +414,25 @@ class WorkoutViewModel @Inject constructor(
     private fun Float.toKg(unit: WeightUnit): Float =
         if (unit == WeightUnit.KG) this else this * 0.45359237f
 
+    private fun Float.toDisplayWeight(unit: WeightUnit): Float =
+        if (unit == WeightUnit.KG) this else this * 2.2046226f
+
     private fun Float.roundToTenth(): Float = (this * 10f).roundToInt() / 10f
 
-    private fun buildInitialSetInputs(previousSets: List<WorkoutSet>?): List<MutableSetInput> {
+    private fun Float.formatWeightInput(): String = String.format(Locale.US, "%.1f", roundToTenth())
+
+    private fun String.convertWeightInput(from: WeightUnit, to: WeightUnit): String {
+        val typedWeight = toFloatOrNull() ?: return this
+        return typedWeight
+            .toKg(from)
+            .toDisplayWeight(to)
+            .formatWeightInput()
+    }
+
+    private fun buildInitialSetInputs(
+        previousSets: List<WorkoutSet>?,
+        weightUnit: WeightUnit
+    ): List<MutableSetInput> {
         val sortedPrevious = previousSets
             ?.sortedWith(compareBy<WorkoutSet> { it.setNumber }.thenBy { it.isDropSet })
             .orEmpty()
@@ -411,6 +442,8 @@ class WorkoutViewModel @Inject constructor(
         return sortedPrevious.map { previous ->
             MutableSetInput(
                 setNumber = previous.setNumber,
+                reps = previous.reps.toString(),
+                weightKg = previous.weightKg.toDisplayWeight(weightUnit).formatWeightInput(),
                 isDropSet = previous.isDropSet,
                 parentSetId = previous.parentSetId
             )
