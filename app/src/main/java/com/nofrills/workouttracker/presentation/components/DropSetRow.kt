@@ -76,7 +76,9 @@ fun DropSetRow(
                     value = currentWeight,
                     onValueChange = onWeightChange,
                     label = { Text("Weight") },
-                    placeholder = { Text(previousWeight?.formatTenth() ?: "0.0") },
+                    placeholder = {
+                        LastValuePlaceholder(previousWeight?.formatTenth() ?: "0.0")
+                    },
                     modifier = Modifier.weight(1f),
                     suffix = { Text(weightSuffix) },
                     keyboardOptions = KeyboardOptions(
@@ -89,7 +91,9 @@ fun DropSetRow(
                     value = currentReps,
                     onValueChange = onRepsChange,
                     label = { Text("Reps") },
-                    placeholder = { Text(previousReps?.toString() ?: "0") },
+                    placeholder = {
+                        LastValuePlaceholder(previousReps?.toString() ?: "0")
+                    },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -100,6 +104,16 @@ fun DropSetRow(
             }
         }
     }
+}
+
+/** Shows the previous add-on set value clearly without saving it until the user enters reps. */
+@Composable
+private fun LastValuePlaceholder(value: String) {
+    Text(
+        text = value,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        fontWeight = FontWeight.SemiBold
+    )
 }
 
 private fun Float.formatTenth(): String = String.format(Locale.US, "%.1f", this)

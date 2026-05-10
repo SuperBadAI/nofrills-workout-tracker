@@ -1,6 +1,9 @@
 package com.nofrills.workouttracker.presentation.workout
 
 import android.net.Uri
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +34,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -108,6 +115,7 @@ fun WorkoutScreenContent(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val workoutScrollState = rememberScrollState()
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(state.successMessage, state.errorMessage) {
         state.successMessage?.let {
@@ -127,6 +135,7 @@ fun WorkoutScreenContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .clearFocusOnTapOutside(focusManager)
                 .padding(paddingValues)
                 .padding(16.dp)
                 .then(
@@ -333,6 +342,18 @@ fun WorkoutScreenContent(
             },
             dismissButton = { TextButton(onClick = onShareCsvDialogDismiss) { Text("Cancel") } }
         )
+    }
+}
+
+/**
+ * Clears text-field focus after any completed screen tap, matching the Android back-button keyboard dismissal behavior
+ * while leaving child buttons, chips, and text fields free to handle the same tap.
+ */
+private fun Modifier.clearFocusOnTapOutside(focusManager: FocusManager): Modifier = pointerInput(focusManager) {
+    awaitEachGesture {
+        awaitFirstDown(pass = PointerEventPass.Initial)
+        val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+        if (up != null) focusManager.clearFocus()
     }
 }
 
