@@ -374,7 +374,7 @@ private fun LoginHome(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            painter = painterResource(id = R.drawable.ic_launcher_foreground_art),
             contentDescription = "No Frills Workout Tracker app icon",
             modifier = Modifier.size(132.dp)
         )
