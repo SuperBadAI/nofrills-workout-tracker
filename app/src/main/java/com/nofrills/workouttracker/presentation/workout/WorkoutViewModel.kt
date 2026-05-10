@@ -77,6 +77,21 @@ class WorkoutViewModel @Inject constructor(
         observeSearch("")
     }
 
+    /** Starts a session from a saved user chip on the login screen, bypassing manual typing. */
+    fun onExistingUserSelected(userName: String) {
+        val user = userName.trim()
+        if (user.isBlank()) return
+        mutableState.update {
+            it.copy(
+                userName = user,
+                loginInput = user,
+                screenState = ScreenState.IDLE,
+                errorMessage = null
+            )
+        }
+        observeSearch("")
+    }
+
     /** Switches the weight unit used in set inputs. */
     fun onWeightUnitChanged(unit: WeightUnit) {
         mutableState.update { state ->

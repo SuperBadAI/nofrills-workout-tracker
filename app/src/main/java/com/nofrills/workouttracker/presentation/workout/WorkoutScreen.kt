@@ -1,6 +1,7 @@
 package com.nofrills.workouttracker.presentation.workout
 
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
@@ -37,12 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nofrills.workouttracker.R
 import com.nofrills.workouttracker.domain.model.Exercise
 import com.nofrills.workouttracker.presentation.components.AddSetButton
 import com.nofrills.workouttracker.presentation.components.DropSetRow
@@ -63,6 +67,7 @@ fun WorkoutScreen(
         state = state,
         onLoginInputChanged = viewModel::onLoginInputChanged,
         onLoginConfirmed = viewModel::onLoginConfirmed,
+        onExistingUserSelected = viewModel::onExistingUserSelected,
         onWeightUnitChanged = viewModel::onWeightUnitChanged,
         onQueryChange = viewModel::onSearchQueryChanged,
         onExerciseSelected = viewModel::onExerciseSelected,
@@ -92,6 +97,7 @@ fun WorkoutScreenContent(
     state: WorkoutUiState,
     onLoginInputChanged: (String) -> Unit,
     onLoginConfirmed: () -> Unit,
+    onExistingUserSelected: (String) -> Unit,
     onWeightUnitChanged: (WeightUnit) -> Unit,
     onQueryChange: (String) -> Unit,
     onExerciseSelected: (Exercise) -> Unit,
@@ -128,6 +134,10 @@ fun WorkoutScreenContent(
         }
     }
 
+    LaunchedEffect(state.screenState) {
+        workoutScrollState.scrollTo(0)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -139,7 +149,7 @@ fun WorkoutScreenContent(
                 .padding(paddingValues)
                 .padding(16.dp)
                 .then(
-                    if (state.screenState == ScreenState.EXERCISE_SELECTED) {
+                    if (state.screenState == ScreenState.LOGIN || state.screenState == ScreenState.EXERCISE_SELECTED) {
                         Modifier.verticalScroll(workoutScrollState)
                     } else {
                         Modifier
@@ -149,22 +159,13 @@ fun WorkoutScreenContent(
         ) {
             when (state.screenState) {
                 ScreenState.LOGIN -> {
-                    Text(
-                        text = "Welcome to No Frills Workout Tracker",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
+                    LoginHome(
+                        loginInput = state.loginInput,
+                        existingUsers = state.userNamesWithData,
+                        onLoginInputChanged = onLoginInputChanged,
+                        onLoginConfirmed = onLoginConfirmed,
+                        onExistingUserSelected = onExistingUserSelected
                     )
-                    OutlinedTextField(
-                        value = state.loginInput,
-                        onValueChange = onLoginInputChanged,
-                        label = { Text("Username") },
-                        placeholder = { Text("Enter your name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Button(onClick = onLoginConfirmed, modifier = Modifier.fillMaxWidth()) {
-                        Text("Continue")
-                    }
                 }
 
                 ScreenState.IDLE -> {
@@ -357,6 +358,100 @@ private fun Modifier.clearFocusOnTapOutside(focusManager: FocusManager): Modifie
     }
 }
 
+/** Login landing page with app branding, manual entry, and one-tap access for returning users. */
+@Composable
+private fun LoginHome(
+    loginInput: String,
+    existingUsers: List<String>,
+    onLoginInputChanged: (String) -> Unit,
+    onLoginConfirmed: () -> Unit,
+    onExistingUserSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            contentDescription = "No Frills Workout Tracker app icon",
+            modifier = Modifier.size(132.dp)
+        )
+        Text(
+            text = "No Frills Workout Tracker",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = "Choose a returning user or start a new profile.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        ExistingUsersCard(
+            users = existingUsers,
+            onExistingUserSelected = onExistingUserSelected,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = loginInput,
+            onValueChange = onLoginInputChanged,
+            label = { Text("Username") },
+            placeholder = { Text("Enter your name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Button(onClick = onLoginConfirmed, modifier = Modifier.fillMaxWidth()) {
+            Text("Continue")
+        }
+    }
+}
+
+/** Shows saved users as full-width choices so returning lifters can log in without typing. */
+@Composable
+private fun ExistingUsersCard(
+    users: List<String>,
+    onExistingUserSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Returning users",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (users.isEmpty()) {
+                Text(
+                    text = "No saved users yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                users.forEach { user ->
+                    OutlinedButton(
+                        onClick = { onExistingUserSelected(user) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(user)
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Standard signed-in heading shown above every post-login screen. */
 @Composable
 private fun LoggedInHeader(userName: String, modifier: Modifier = Modifier) {
@@ -399,6 +494,7 @@ private fun WorkoutScreenContentPreview() {
         ),
         onLoginInputChanged = {},
         onLoginConfirmed = {},
+        onExistingUserSelected = {},
         onWeightUnitChanged = {},
         onQueryChange = {},
         onExerciseSelected = {},
